@@ -10,3 +10,4 @@ enum-primitive-derive = "^0.1"
 num-traits = "^0.1"
 num-integer = "^0.1"
 clap = { version = "4.5.23", features = ["derive"] }
+iter-enum = "1.2.0"

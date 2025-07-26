@@ -72,6 +72,41 @@ fn exec_i(
                 .map_err(|e| handle_load_error(e))? as i32,
         ),
 
+        // Zicsr Instructions
+        IInstruction::csrrw => {
+            let register_data = cpu.csrfile.read(imm);
+            cpu.csrfile.write(imm, rs1_data);
+            Some(register_data)
+        }
+        IInstruction::csrrs => {
+            let register_data = cpu.csrfile.read(imm);
+            cpu.csrfile.write(imm, register_data | rs1_data);
+            Some(register_data)
+        }
+        IInstruction::csrrc => {
+            let register_data = cpu.csrfile.read(imm);
+            cpu.csrfile.write(imm, register_data & !rs1_data);
+            Some(register_data)
+        }
+        IInstruction::csrrwi => {
+            let register_data = cpu.csrfile.read(imm);
+            let uimm = rs1 as u32;
+            cpu.csrfile.write(imm, uimm as i32);
+            Some(register_data)
+        }
+        IInstruction::csrrsi => {
+            let register_data = cpu.csrfile.read(imm);
+            let uimm = rs1 as u32;
+            cpu.csrfile.write(imm, register_data | uimm as i32);
+            Some(register_data)
+        }
+        IInstruction::csrrci => {
+            let register_data = cpu.csrfile.read(imm);
+            let uimm = rs1 as u32;
+            cpu.csrfile.write(imm, register_data & !(uimm as i32));
+            Some(register_data)
+        }
+
         // Jump
         IInstruction::jalr => {
             let old_pc = cpu.pc as i32;
@@ -94,13 +129,6 @@ fn exec_i(
             // need to fence anything
             IInstruction::fence => Ok(()),
             IInstruction::fencei => Ok(()),
-
-            IInstruction::csrrc => todo!(),
-            IInstruction::csrrs => todo!(),
-            IInstruction::csrrw => todo!(),
-            IInstruction::csrrci => todo!(),
-            IInstruction::csrrsi => todo!(),
-            IInstruction::csrrwi => todo!(),
 
             _ => panic!("Unimplemented instruction: {:?}", inst),
         }

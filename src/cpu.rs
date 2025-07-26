@@ -3,9 +3,11 @@ use self::decoder::decode;
 use self::regfile::RegFile;
 
 use crate::bus::{Bus, BusDevice, BusError};
+use crate::cpu::csr::CSRs;
 use crate::exceptions::{self, RVException};
 
 pub mod alu;
+pub mod csr;
 pub mod decoder;
 pub mod instructions;
 pub mod regfile;
@@ -13,6 +15,7 @@ pub mod regfile;
 pub struct Cpu {
     regfile: RegFile,
     bus: Bus,
+    csrfile: CSRs,
     pc: usize,
 }
 
@@ -20,6 +23,7 @@ impl Cpu {
     pub fn new(bus: Bus) -> Self {
         Self {
             regfile: RegFile::new(),
+            csrfile: CSRs::new(),
             bus,
             pc: 0x80000000,
         }
