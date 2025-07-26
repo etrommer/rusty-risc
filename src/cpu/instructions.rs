@@ -269,13 +269,13 @@ pub enum Instruction {
     },
 }
 
-fn pretty_register(num: usize) -> &str {
+fn pretty_register(num: &usize) -> &str {
     const REG_NAMES: [&str; 32] = [
         "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2", "s0", "s1", "a0", "a1", "a2", "a3", "a4",
         "a5", "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4",
         "t5", "t6",
     ];
-    REG_NAMES[num]
+    REG_NAMES[*num]
 }
 
 impl fmt::Display for Instruction {
@@ -284,20 +284,20 @@ impl fmt::Display for Instruction {
             Self::RType { rd, rs1, rs2, inst } => {
                 write!(
                     f,
-                    "{:?} - rd: {}, rs1: {}, rs2: {} (R)",
+                    "{:?} - {}, {}, {} (R)",
                     inst,
-                    pretty_register(*rd),
-                    pretty_register(*rs1),
-                    pretty_register(*rs2)
+                    pretty_register(rd),
+                    pretty_register(rs1),
+                    pretty_register(rs2)
                 )
             }
             Self::IType { imm, rd, rs1, inst } => {
                 write!(
                     f,
-                    "{:?} - rd: {}, rs1: {}, imm: {:#x} (I) ",
+                    "{:?} - {}, {}, {:#x} (I) ",
                     inst,
-                    pretty_register(*rd),
-                    pretty_register(*rs1),
+                    pretty_register(rd),
+                    pretty_register(rs1),
                     imm
                 )
             }
@@ -309,21 +309,15 @@ impl fmt::Display for Instruction {
             } => {
                 write!(
                     f,
-                    "{:?} - rs1: {}, rs2: {}, imm: {:#x} (S/B)",
+                    "{:?} - {}, {}, {:#x} (S/B)",
                     inst,
-                    pretty_register(*rs1),
-                    pretty_register(*rs2),
+                    pretty_register(rs1),
+                    pretty_register(rs2),
                     imm
                 )
             }
             Self::UJType { imm, rd, inst } => {
-                write!(
-                    f,
-                    "{:?} - rd: {}, imm: {:#x} (U/J)",
-                    inst,
-                    pretty_register(*rd),
-                    imm
-                )
+                write!(f, "{:?} - {}, {:#x} (U/J)", inst, pretty_register(rd), imm)
             }
         }
     }

@@ -1,10 +1,12 @@
+use core::time;
+
 use self::alu::exec;
 use self::decoder::decode;
 use self::regfile::RegFile;
 
 use crate::bus::{Bus, BusDevice, BusError};
-use crate::cpu::csr::CSRs;
-use crate::exceptions::{self, RVException};
+use crate::cpu::csr::{ArchCSRs, CSRFile};
+use crate::exceptions::RVException;
 
 pub mod alu;
 pub mod csr;
@@ -15,15 +17,15 @@ pub mod regfile;
 pub struct Cpu {
     regfile: RegFile,
     bus: Bus,
-    csrfile: CSRs,
-    pc: usize,
+    csrfile: CSRFile,
+    pub pc: usize,
 }
 
 impl Cpu {
     pub fn new(bus: Bus) -> Self {
         Self {
             regfile: RegFile::new(),
-            csrfile: CSRs::new(),
+            csrfile: CSRFile::new(),
             bus,
             pc: 0x80000000,
         }
@@ -37,23 +39,31 @@ impl Cpu {
     }
 
     fn handle_exception(&mut self, exception: RVException) {
-        match exception {
-            RVException::InstructionAddressMisaligned(addr) => todo!(),
-            RVException::InstructionAccessFault(addr) => todo!(),
-            RVException::IllegalInstruction(error) => todo!(),
-            RVException::BreakPoint => todo!(),
-            RVException::LoadAddressMisaligned(addr) => todo!(),
-            RVException::LoadAccessFault(addr) => todo!(),
-            RVException::StoreAddressMisaligned(addr) => todo!(),
-            RVException::StoreAccessFault(addr) => todo!(),
-            RVException::EnvironmentCall => todo!(),
-        }
+        // match exception {
+        //     RVException::InstructionAddressMisaligned(addr) => todo!(),
+        //     RVException::InstructionAccessFault(addr) => todo!(),
+        //     RVException::IllegalInstruction(error) => todo!(),
+        //     RVException::BreakPoint => todo!(),
+        //     RVException::LoadAddressMisaligned(addr) => todo!(),
+        //     RVException::LoadAccessFault(addr) => todo!(),
+        //     RVException::StoreAddressMisaligned(addr) => todo!(),
+        //     RVException::StoreAccessFault(addr) => todo!(),
+        //     RVException::EnvironmentCall => todo!(),
+        // };
+        println!("Exception {:?} @ {:#08x}", exception, self.pc);
+        self.csrfile.write(ArchCSRs::Mepc as i32, self.pc as i32);
+        self.csrfile
+            .write(ArchCSRs::Mcause as i32, exception.to_ecode());
+        self.pc = self.csrfile.read(ArchCSRs::Mtvec as i32) as usize
     }
+
     fn next_instruction(&mut self) -> Result<(), RVException> {
         // Fetch
-        let next_instruction = self.fetch()?;
+        let instruction = self.fetch()?;
+        println!("{:#08x}", instruction);
         // Decode
-        let decoded_instr = decode(&next_instruction)?;
+        let decoded_instr = decode(&instruction)?;
+        println!("{:#08x} | {}", self.pc, decoded_instr);
         // Execute
         exec(self, decoded_instr)?;
         Ok(())
@@ -64,5 +74,6 @@ impl Cpu {
             Err(exception) => self.handle_exception(exception),
             Ok(()) => self.pc += 4,
         };
+        std::thread::sleep(time::Duration::from_millis(50));
     }
 }
