@@ -1,7 +1,7 @@
 use super::instructions::{IInstruction, Instruction, RInstruction, SBInstruction, UJInstruction};
 use super::Cpu;
 use crate::bus::{BusDevice, BusError};
-use crate::exceptions::RVException;
+use crate::trap::RVException;
 
 fn exec_i(
     cpu: &mut Cpu,

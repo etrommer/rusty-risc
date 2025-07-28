@@ -4,7 +4,7 @@ use std::error::Error;
 
 use super::instructions::{IInstruction, RInstruction, SBInstruction, UJInstruction};
 use super::instructions::{Instruction, Opcode};
-use crate::exceptions::RVException;
+use crate::trap::RVException;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DecodingError {

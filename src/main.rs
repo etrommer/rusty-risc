@@ -6,7 +6,7 @@ use cpu::Cpu;
 
 mod bus;
 mod cpu;
-mod exceptions;
+mod trap;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]

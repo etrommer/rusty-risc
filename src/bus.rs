@@ -2,6 +2,7 @@ pub mod clint;
 pub mod ram;
 pub mod uart;
 
+use self::clint::Clint;
 use self::ram::Ram;
 use self::uart::Uart;
 
@@ -75,6 +76,7 @@ pub trait BusDevice {
 pub struct Bus {
     ram: Ram,
     uart: Uart,
+    pub clint: Clint,
 }
 
 impl Bus {
@@ -82,6 +84,7 @@ impl Bus {
         Self {
             ram: Ram::new(ram),
             uart: Uart {},
+            clint: Clint::new(),
         }
     }
 }
@@ -99,6 +102,10 @@ impl BusDevice for Bus {
         let (uart_lower, uart_upper) = self.uart.addr_space();
         if addr >= uart_lower && addr < uart_upper {
             return self.uart.load(addr);
+        }
+        let (clint_lower, clint_upper) = self.clint.addr_space();
+        if addr >= clint_lower && addr < clint_upper {
+            return self.clint.load(addr);
         }
 
         // Load from unmapped address
@@ -121,6 +128,10 @@ impl BusDevice for Bus {
         let (uart_lower, uart_upper) = self.uart.addr_space();
         if addr >= uart_lower && addr < uart_upper {
             return self.uart.store(addr, data);
+        }
+        let (clint_lower, clint_upper) = self.clint.addr_space();
+        if addr >= clint_lower && addr < clint_upper {
+            return self.clint.store(addr, data);
         }
 
         // Store to unmapped address
