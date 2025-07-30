@@ -1,4 +1,5 @@
 use core::time;
+use std::collections::HashSet;
 
 use self::alu::exec;
 use self::decoder::decode;
@@ -23,6 +24,7 @@ pub struct Cpu {
     regfile: RegFile,
     csrfile: CSRFile,
     bus: Bus,
+    amoreserved: HashSet<usize>,
     pub pc: usize,
 }
 
@@ -31,7 +33,8 @@ impl Cpu {
         Self {
             regfile: RegFile::new(),
             csrfile: CSRFile::new(),
-            bus,
+            bus: bus,
+            amoreserved: HashSet::new(),
             pc: 0x80000000,
         }
     }

@@ -199,6 +199,26 @@ fn exec_r(
         RInstruction::amoMinW => amo_logic(|a, b| a.min(b))?,
         RInstruction::amoMaxUW => amo_logic(|a, b| (a as u32).max(b as u32) as i32)?,
         RInstruction::amoMinUW => amo_logic(|a, b| (a as u32).min(b as u32) as i32)?,
+        RInstruction::lrw => {
+            let addr = rs1_data as u32 as usize;
+            let mem_value = cpu
+                .bus
+                .load::<i32>(addr)
+                .map_err(|e| handle_load_error(e))?;
+            cpu.amoreserved.insert(addr);
+            mem_value
+        }
+        RInstruction::scw => {
+            let addr = rs1_data as u32 as usize;
+            if cpu.amoreserved.remove(&addr) {
+                cpu.bus
+                    .store::<i32>(addr, rs2_data)
+                    .map_err(|e| handle_store_error(e))?;
+                0
+            } else {
+                1
+            }
+        }
 
         _ => todo!(),
     };
