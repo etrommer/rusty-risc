@@ -1,4 +1,7 @@
-use crate::trap::RVException;
+use crate::{
+    cpu::csr::{self, CSRFile},
+    trap::RVException,
+};
 
 use super::BusDevice;
 use enum_primitive_derive::Primitive;
@@ -31,12 +34,12 @@ impl Clint {
         }
     }
 
-    pub fn tick(&mut self) -> Result<(), RVException> {
+    pub fn tick(&mut self, csrfile: &mut CSRFile) {
         self.mtime = self.mtime.wrapping_add(1);
-        if (self.mtime >= self.mtimecmp) {
-            Err(RVException::TimerInterrupt)
+        if self.mtime >= self.mtimecmp {
+            csrfile.set_mtip(true);
         } else {
-            Ok(())
+            csrfile.set_mtip(false);
         }
     }
 }

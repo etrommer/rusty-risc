@@ -137,6 +137,21 @@ fn exec_i(
             IInstruction::fence => Ok(()),
             IInstruction::fencei => Ok(()),
 
+            IInstruction::mret => {
+                // Return from machine mode trap
+                cpu.trap_exit();
+                Ok(())
+            }
+            IInstruction::sret => {
+                // Return from supervisor mode trap
+                cpu.trap_exit();
+                Ok(())
+            }
+            IInstruction::wfi => {
+                // Ignore sleep for now
+                Ok(())
+            }
+
             _ => panic!("Unimplemented instruction: {:?}", inst),
         }
     }
@@ -190,7 +205,7 @@ fn exec_r(
             }
         }
 
-        // Atomics & M-Instructions;
+        // Atomics
         RInstruction::amoAddW => amo_logic(|a, b| a + b)?,
         RInstruction::amoAndW => amo_logic(|a, b| a & b)?,
         RInstruction::amoOrW => amo_logic(|a, b| a | b)?,
@@ -220,6 +235,7 @@ fn exec_r(
             }
         }
 
+        // M-Extension instructions
         _ => todo!(),
     };
     cpu.regfile.write(rd, result);

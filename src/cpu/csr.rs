@@ -1,4 +1,4 @@
-use crate::cpu::MMIORegister;
+use crate::{cpu::MMIORegister, trap::RVException};
 use enum_primitive_derive::Primitive;
 use num_traits::FromPrimitive;
 use std::collections::HashMap;
@@ -86,7 +86,7 @@ impl CSRFile {
         0
     }
 
-    pub fn enter_irq(&mut self) {
+    pub fn disable_irq(&mut self) {
         const MSTATUS_MIE: u32 = 1 << 3;
         const MSTATUS_MPIE: u32 = 1 << 7;
 
@@ -101,7 +101,7 @@ impl CSRFile {
         mstatus.value &= !MSTATUS_MIE;
     }
 
-    pub fn exit_irq(&mut self) {
+    pub fn enable_irq(&mut self) {
         const MSTATUS_MIE: u32 = 1 << 3; // MIE bit in mstatus CSR
         const MSTATUS_MPIE: u32 = 1 << 7; // MPIE bit in mstatus CSR
 
@@ -116,12 +116,25 @@ impl CSRFile {
         mstatus.value &= !MSTATUS_MPIE;
     }
 
-    pub fn mtimer_trap(&self) -> bool {
-        const MIE_MTIE: u32 = 1 << 7; // MTIP bit in mip CSR
-        const MSTATUS_MIE: u32 = 1 << 3; // MIE bit in mstatus CSR
+    pub fn mtimer_interrupt(&self) -> Result<(), RVException> {
+        const MIE_MTIE: u32 = 1 << 7;
+        const MSTATUS_MIE: u32 = 1 << 3;
+        const MIP_MTIP: u32 = 1 << 7;
+
         let mie = self.csrs.get(&ArchCSRs::mie).unwrap();
         let mstatus = self.csrs.get(&ArchCSRs::mstatus).unwrap();
-        ((mie.value & MIE_MTIE) != 0) && ((mstatus.value & MSTATUS_MIE) != 0)
+        let mip = self.csrs.get(&ArchCSRs::mip).unwrap();
+
+        // Check if a timer interrupt is pending
+        // timer interrupts are enabled
+        // and global interrupts are enabled
+        if ((mip.value & MIP_MTIP) != 0)
+            && ((mie.value & MIE_MTIE) != 0)
+            && ((mstatus.value & MSTATUS_MIE) != 0)
+        {
+            return Err(RVException::TimerInterrupt);
+        }
+        Ok(())
     }
 
     pub fn set_mtip(&mut self, value: bool) {

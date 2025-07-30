@@ -46,7 +46,7 @@ impl Cpu {
         })
     }
 
-    fn handle_trap(&mut self, exception: RVException) {
+    fn trap_entry(&mut self, exception: RVException) {
         let mtval = match exception {
             RVException::InstructionAddressMisaligned(addr) => addr as u32,
             RVException::InstructionAccessFault(addr) => addr as u32,
@@ -62,7 +62,7 @@ impl Cpu {
         println!("Exception {:?} @ {:#08x}", exception, self.pc);
 
         // Disable interrupts
-        self.csrfile.enter_irq();
+        self.csrfile.disable_irq();
 
         self.csrfile.write(ArchCSRs::mepc as i32, self.pc as i32);
         self.csrfile
@@ -70,25 +70,18 @@ impl Cpu {
         self.pc = self.csrfile.read(ArchCSRs::mtvec as i32) as usize
     }
 
-    fn next_instruction(&mut self) -> Result<(), RVException> {
-        // Update system timer
-        if Err(RVException::TimerInterrupt) == self.bus.clint.tick() {
-            self.csrfile.set_mtip(true);
-            if self.csrfile.mtimer_trap() {
-                self.handle_trap(RVException::TimerInterrupt);
-            }
-        } else {
-            self.csrfile.set_mtip(false);
-        }
+    fn trap_exit(&mut self) {
+        // Re-enable interrupts
+        self.csrfile.enable_irq();
 
-        match self.bus.clint.tick() {
-            Err(_) => {
-                self.csrfile.set_mtip(true);
-            }
-            Ok(()) => {
-                self.csrfile.set_mtip(false);
-            }
-        }
+        // Restore PC from mepc
+        self.pc = self.csrfile.read(ArchCSRs::mepc as i32) as usize;
+    }
+
+    fn next_instruction(&mut self) -> Result<(), RVException> {
+        // Update CLINT
+        self.bus.clint.tick(&mut self.csrfile);
+        self.csrfile.mtimer_interrupt()?;
 
         let instruction = self.fetch()?;
         // println!("{:#08x}", instruction);
@@ -102,7 +95,7 @@ impl Cpu {
 
     pub fn step(&mut self) {
         match self.next_instruction() {
-            Err(exception) => self.handle_trap(exception),
+            Err(exception) => self.trap_entry(exception),
             Ok(()) => self.pc += 4,
         };
         std::thread::sleep(time::Duration::from_millis(50));
