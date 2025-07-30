@@ -85,4 +85,52 @@ impl CSRFile {
         }
         0
     }
+
+    pub fn enter_irq(&mut self) {
+        const MSTATUS_MIE: u32 = 1 << 3;
+        const MSTATUS_MPIE: u32 = 1 << 7;
+
+        let mstatus = self.csrs.get_mut(&ArchCSRs::mstatus).unwrap();
+        // Save MIE bit to MPIE
+        if (mstatus.value & MSTATUS_MIE) != 0 {
+            mstatus.value |= MSTATUS_MPIE;
+        } else {
+            mstatus.value &= !MSTATUS_MPIE;
+        }
+        // Clear MIE to disable interrupts
+        mstatus.value &= !MSTATUS_MIE;
+    }
+
+    pub fn exit_irq(&mut self) {
+        const MSTATUS_MIE: u32 = 1 << 3; // MIE bit in mstatus CSR
+        const MSTATUS_MPIE: u32 = 1 << 7; // MPIE bit in mstatus CSR
+
+        let mstatus = self.csrs.get_mut(&ArchCSRs::mstatus).unwrap();
+        // Restore previous MIE state from MPIE
+        if (mstatus.value & MSTATUS_MPIE) != 0 {
+            mstatus.value |= MSTATUS_MIE;
+        } else {
+            mstatus.value &= !MSTATUS_MIE;
+        }
+        // Clear MPIE bit
+        mstatus.value &= !MSTATUS_MPIE;
+    }
+
+    pub fn mtimer_trap(&self) -> bool {
+        const MIE_MTIE: u32 = 1 << 7; // MTIP bit in mip CSR
+        const MSTATUS_MIE: u32 = 1 << 3; // MIE bit in mstatus CSR
+        let mie = self.csrs.get(&ArchCSRs::mie).unwrap();
+        let mstatus = self.csrs.get(&ArchCSRs::mstatus).unwrap();
+        ((mie.value & MIE_MTIE) != 0) && ((mstatus.value & MSTATUS_MIE) != 0)
+    }
+
+    pub fn set_mtip(&mut self, value: bool) {
+        const MIP_MTIP: u32 = 1 << 7; // MTIP bit in mip CSR
+        let csr = self.csrs.get_mut(&ArchCSRs::mip).unwrap();
+        if value {
+            csr.value |= MIP_MTIP; // Set the MTIP bit
+        } else {
+            csr.value &= !MIP_MTIP; // Clear the MTIP bit
+        }
+    }
 }

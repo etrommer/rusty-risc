@@ -43,19 +43,24 @@ impl Cpu {
         })
     }
 
-    fn handle_exception(&mut self, exception: RVException) {
-        // match exception {
-        //     RVException::InstructionAddressMisaligned(addr) => todo!(),
-        //     RVException::InstructionAccessFault(addr) => todo!(),
-        //     RVException::IllegalInstruction(error) => todo!(),
-        //     RVException::BreakPoint => todo!(),
-        //     RVException::LoadAddressMisaligned(addr) => todo!(),
-        //     RVException::LoadAccessFault(addr) => todo!(),
-        //     RVException::StoreAddressMisaligned(addr) => todo!(),
-        //     RVException::StoreAccessFault(addr) => todo!(),
-        //     RVException::EnvironmentCall => todo!(),
-        // };
+    fn handle_trap(&mut self, exception: RVException) {
+        let mtval = match exception {
+            RVException::InstructionAddressMisaligned(addr) => addr as u32,
+            RVException::InstructionAccessFault(addr) => addr as u32,
+            RVException::IllegalInstruction(instruction) => instruction,
+            RVException::LoadAddressMisaligned(addr) => addr as u32,
+            RVException::LoadAccessFault(addr) => addr as u32,
+            RVException::StoreAddressMisaligned(addr) => addr as u32,
+            RVException::StoreAccessFault(addr) => addr as u32,
+            _ => 0,
+        };
+        self.csrfile.write(ArchCSRs::mtval as i32, mtval as i32);
+
         println!("Exception {:?} @ {:#08x}", exception, self.pc);
+
+        // Disable interrupts
+        self.csrfile.enter_irq();
+
         self.csrfile.write(ArchCSRs::mepc as i32, self.pc as i32);
         self.csrfile
             .write(ArchCSRs::mcause as i32, exception.to_ecode() as i32);
@@ -64,8 +69,23 @@ impl Cpu {
 
     fn next_instruction(&mut self) -> Result<(), RVException> {
         // Update system timer
-        // TODO: Should not always trap
-        self.bus.clint.tick()?;
+        if Err(RVException::TimerInterrupt) == self.bus.clint.tick() {
+            self.csrfile.set_mtip(true);
+            if self.csrfile.mtimer_trap() {
+                self.handle_trap(RVException::TimerInterrupt);
+            }
+        } else {
+            self.csrfile.set_mtip(false);
+        }
+
+        match self.bus.clint.tick() {
+            Err(_) => {
+                self.csrfile.set_mtip(true);
+            }
+            Ok(()) => {
+                self.csrfile.set_mtip(false);
+            }
+        }
 
         let instruction = self.fetch()?;
         // println!("{:#08x}", instruction);
@@ -79,7 +99,7 @@ impl Cpu {
 
     pub fn step(&mut self) {
         match self.next_instruction() {
-            Err(exception) => self.handle_exception(exception),
+            Err(exception) => self.handle_trap(exception),
             Ok(()) => self.pc += 4,
         };
         std::thread::sleep(time::Duration::from_millis(50));
