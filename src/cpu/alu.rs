@@ -3,6 +3,20 @@ use super::Cpu;
 use crate::bus::{BusDevice, BusError};
 use crate::trap::RVException;
 
+fn handle_load_error(e: BusError) -> RVException {
+    match e {
+        BusError::AddressMisaligned(addr) => RVException::LoadAddressMisaligned(addr),
+        BusError::AddressUnmapped(addr) => RVException::LoadAccessFault(addr),
+    }
+}
+
+fn handle_store_error(e: BusError) -> RVException {
+    match e {
+        BusError::AddressMisaligned(addr) => RVException::StoreAddressMisaligned(addr),
+        BusError::AddressUnmapped(addr) => RVException::StoreAccessFault(addr),
+    }
+}
+
 fn exec_i(
     cpu: &mut Cpu,
     rs1: usize,
@@ -12,13 +26,6 @@ fn exec_i(
 ) -> Result<(), RVException> {
     // Load rs1 contents
     let rs1_data = cpu.regfile.read(rs1);
-
-    fn handle_load_error(e: BusError) -> RVException {
-        match e {
-            BusError::AddressMisaligned(addr) => RVException::LoadAddressMisaligned(addr),
-            BusError::AddressUnmapped(addr) => RVException::LoadAccessFault(addr),
-        }
-    }
 
     // Handle all instructions that write back to rd
     if let Some(result) = match inst {
@@ -145,6 +152,20 @@ fn exec_r(
     let rs1_data = cpu.regfile.read(rs1);
     let rs2_data = cpu.regfile.read(rs2);
 
+    // Generic closure for atomic logic instructions
+    // to make the implementation less verbose.
+    let mut amo_logic = |operation: fn(i32, i32) -> i32| -> Result<i32, RVException> {
+        let mem_value = cpu
+            .bus
+            .load::<i32>(rs1_data as u32 as usize)
+            .map_err(|e| handle_load_error(e))?;
+        let result = operation(mem_value, rs2_data);
+        cpu.bus
+            .store::<i32>(rs1_data as u32 as usize, result)
+            .map_err(|e| handle_store_error(e))?;
+        Ok(result)
+    };
+
     let result = match inst {
         RInstruction::add => rs1_data + rs2_data,
         RInstruction::sub => rs1_data - rs2_data,
@@ -170,6 +191,15 @@ fn exec_r(
         }
 
         // Atomics & M-Instructions;
+        RInstruction::amoAddW => amo_logic(|a, b| a + b)?,
+        RInstruction::amoAndW => amo_logic(|a, b| a & b)?,
+        RInstruction::amoOrW => amo_logic(|a, b| a | b)?,
+        RInstruction::amoXorW => amo_logic(|a, b| a ^ b)?,
+        RInstruction::amoMaxW => amo_logic(|a, b| a.max(b))?,
+        RInstruction::amoMinW => amo_logic(|a, b| a.min(b))?,
+        RInstruction::amoMaxUW => amo_logic(|a, b| (a as u32).max(b as u32) as i32)?,
+        RInstruction::amoMinUW => amo_logic(|a, b| (a as u32).min(b as u32) as i32)?,
+
         _ => todo!(),
     };
     cpu.regfile.write(rd, result);
