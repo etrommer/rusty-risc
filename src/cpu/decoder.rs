@@ -91,9 +91,7 @@ pub fn decode(raw: &u32) -> Result<Instruction, RVException> {
                         inst,
                     })
                 } else {
-                    Err(RVException::IllegalInstruction(DecodingError::RTypeError(
-                        funct3, funct7,
-                    )))
+                    Err(RVException::IllegalInstruction(*raw))
                 }
             }
             // I-Type format
@@ -108,11 +106,7 @@ pub fn decode(raw: &u32) -> Result<Instruction, RVException> {
                         inst,
                     })
                 } else {
-                    Err(RVException::IllegalInstruction(DecodingError::ITypeError(
-                        opcode as u32,
-                        funct3,
-                        imm,
-                    )))
+                    Err(RVException::IllegalInstruction(*raw))
                 }
             }
             // S/B-Type format
@@ -126,10 +120,7 @@ pub fn decode(raw: &u32) -> Result<Instruction, RVException> {
                         inst,
                     })
                 } else {
-                    Err(RVException::IllegalInstruction(DecodingError::SBTypeError(
-                        opcode as u32,
-                        funct3,
-                    )))
+                    Err(RVException::IllegalInstruction(*raw))
                 }
             }
             Opcode::STORE => {
@@ -142,10 +133,7 @@ pub fn decode(raw: &u32) -> Result<Instruction, RVException> {
                         inst,
                     })
                 } else {
-                    Err(RVException::IllegalInstruction(DecodingError::SBTypeError(
-                        opcode as u32,
-                        funct3,
-                    )))
+                    Err(RVException::IllegalInstruction(*raw))
                 }
             }
             Opcode::JAL => Ok(Instruction::UJType {
@@ -160,9 +148,7 @@ pub fn decode(raw: &u32) -> Result<Instruction, RVException> {
             }),
         }
     } else {
-        Err(RVException::IllegalInstruction(DecodingError::OpCodeError(
-            raw_opcode,
-        )))
+        Err(RVException::IllegalInstruction(*raw))
     }
 }
 

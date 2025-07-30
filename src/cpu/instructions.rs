@@ -140,6 +140,10 @@ pub enum IInstruction {
     csrrwi,
     csrrsi,
     csrrci,
+
+    sret,
+    mret,
+    wfi,
 }
 
 impl IInstruction {
@@ -153,11 +157,10 @@ impl IInstruction {
             }
         }
 
-        let upper_imm = (*imm as u32) >> 5;
-        match (opcode, funct3, upper_imm) {
-            (Opcode::ARITH_IMM, 0b001, 0x00) => Some(IInstruction::slli),
-            (Opcode::ARITH_IMM, 0b101, 0x00) => Some(IInstruction::srli),
-            (Opcode::ARITH_IMM, 0b101, 0x20) => Some(IInstruction::srai),
+        match (opcode, funct3, imm) {
+            (Opcode::ARITH_IMM, 0b001, 0x000) => Some(IInstruction::slli),
+            (Opcode::ARITH_IMM, 0b101, 0x000) => Some(IInstruction::srli),
+            (Opcode::ARITH_IMM, 0b101, 0x400) => Some(IInstruction::srai),
 
             (Opcode::ARITH_IMM, 0x0, _) => Some(IInstruction::addi),
             (Opcode::ARITH_IMM, 0x4, _) => Some(IInstruction::xori),
@@ -184,6 +187,10 @@ impl IInstruction {
             (Opcode::SYSTEM, 0b101, _) => Some(IInstruction::csrrwi),
             (Opcode::SYSTEM, 0b110, _) => Some(IInstruction::csrrsi),
             (Opcode::SYSTEM, 0b111, _) => Some(IInstruction::csrrci),
+
+            (Opcode::SYSTEM, 0x0, 0x102) => Some(IInstruction::sret),
+            (Opcode::SYSTEM, 0x0, 0x302) => Some(IInstruction::mret),
+            (Opcode::SYSTEM, 0x0, 0x105) => Some(IInstruction::wfi),
 
             _ => None,
         }
