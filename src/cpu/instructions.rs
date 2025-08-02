@@ -160,7 +160,7 @@ impl IInstruction {
         match (opcode, funct3, imm) {
             (Opcode::ARITH_IMM, 0b001, _) if *imm <= 0x03F => Some(IInstruction::slli),
             (Opcode::ARITH_IMM, 0b101, _) if *imm <= 0x03F => Some(IInstruction::srli),
-            (Opcode::ARITH_IMM, 0b101, _) if (*imm >= 0x200) && (*imm <= 0x23f) => {
+            (Opcode::ARITH_IMM, 0b101, _) if (*imm >= 0x400) && (*imm <= 0x41f) => {
                 Some(IInstruction::srai)
             }
 

@@ -114,8 +114,7 @@ impl Cpu {
     }
 
     pub fn dump_state(&self) {
-        println!("PC: {:#08x}", self.pc);
-        println!("Registers:");
+        println!("=== CPU State @ PC {:#08x} ===", self.pc);
         for i in 0..32 {
             if i % 5 == 0 && i != 0 {
                 println!("");
@@ -135,6 +134,18 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn test_srai() {
+        let ram: Vec<u8> = [0xfffff0b7, 0x4010d093]
+            .iter()
+            .flat_map(|&v: &u32| v.to_le_bytes())
+            .collect();
+        let mut cpu = Cpu::new(ram);
+        assert_eq!(cpu.next_instruction(), Ok(()));
+        cpu.pc += 4;
+        assert_eq!(cpu.next_instruction(), Ok(()));
+        assert_eq!(cpu.regfile.read(1) as i32, -2048);
+    }
     #[test]
     fn test_lui() {
         let ram: Vec<u8> = [0x800000b7, 0xfffff137]
