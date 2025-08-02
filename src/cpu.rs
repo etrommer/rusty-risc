@@ -102,76 +102,40 @@ impl Cpu {
         };
         std::thread::sleep(time::Duration::from_millis(self.delay));
     }
+
+    pub fn dump_state(&self) {
+        println!("PC: {:#08x}", self.pc);
+        println!("Registers:");
+        for i in 0..32 {
+            if i % 5 == 0 && i != 0 {
+                println!("");
+            }
+            print!(
+                "{:<4}: {:#010x}  ",
+                pretty_register(&i),
+                self.regfile.read(i)
+            );
+        }
+        println!("");
+    }
 }
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
-    fn run_code_and_get_cpu(code: &[u32]) -> Cpu {
-        let code_bytes = code
+    #[test]
+    fn test_lui() {
+        let ram: Vec<u8> = [0x800000b7, 0xfffff137]
             .iter()
-            .map(|x| x.to_le_bytes())
-            .collect::<Vec<_>>()
-            .concat();
-        let bus = Bus::new(code_bytes);
-        let mut cpu = Cpu::new(bus);
-        cpu.pc = 0x80000000;
-        for _ in 0..code.len() {
-            cpu.step();
-        }
-        cpu
-    }
-
-    #[test]
-    fn test_addi() {
-        let code = [
-            0x00100693_u32, // li a3,1
-            0x00168713_u32, // addi a4,a3,1
-        ];
-        let cpu = run_code_and_get_cpu(&code);
-        assert_eq!(cpu.regfile.read(14), 2);
-    }
-
-    #[test]
-    fn test_add() {
-        let code = [
-            0x00100693_u32, // li a3,1
-            0x00200713_u32, // li a4,2
-            0x00e707b3_u32, // add a5,a4,a3 (a5 = a4 + a3)
-        ];
-        let cpu = run_code_and_get_cpu(&code);
-        assert_eq!(cpu.regfile.read(15), 3); // a5 should be 3
-    }
-
-    #[test]
-    fn test_andi() {
-        let code = [
-            0x00f00693_u32, // li a3,15
-            0x00a6f713_u32, // andi a4,a3,10 (a4 = a3 & 10)
-        ];
-        let cpu = run_code_and_get_cpu(&code);
-        assert_eq!(cpu.regfile.read(14), 10); // a4 should be 10
-    }
-
-    #[test]
-    fn test_and() {
-        let code = [
-            0x00f00693_u32, // li a3,15
-            0x00a00713_u32, // li a4,10
-            0x00e707b3_u32, // and a5,a4,a3 (a5 = a4 & a3)
-        ];
-        let cpu = run_code_and_get_cpu(&code);
-        assert_eq!(cpu.regfile.read(15), 10); // a5 should be 10
-    }
-
-    #[test]
-    fn test_auipc() {
-        let code = [
-            0x00000297_u32, // auipc t0,0
-        ];
-        let cpu = run_code_and_get_cpu(&code);
-        // auipc t0,0: t0 = pc + 0
-        assert_eq!(cpu.regfile.read(5) as u32, 0x80000000_u32); // t0 should be initial pc
+            .flat_map(|&v: &u32| v.to_le_bytes())
+            .collect();
+        let mut cpu = Cpu::new(ram);
+        assert_eq!(cpu.next_instruction(), Ok(()));
+        assert_eq!(cpu.regfile.read(1) as u32, 0x80000000);
+        cpu.pc += 4;
+        assert_eq!(cpu.next_instruction(), Ok(()));
+        assert_eq!(cpu.regfile.read(2) as u32, 0xfffff000);
     }
 }

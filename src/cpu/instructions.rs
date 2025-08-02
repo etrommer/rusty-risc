@@ -158,9 +158,11 @@ impl IInstruction {
         }
 
         match (opcode, funct3, imm) {
-            (Opcode::ARITH_IMM, 0b001, 0x000) => Some(IInstruction::slli),
-            (Opcode::ARITH_IMM, 0b101, 0x000) => Some(IInstruction::srli),
-            (Opcode::ARITH_IMM, 0b101, 0x400) => Some(IInstruction::srai),
+            (Opcode::ARITH_IMM, 0b001, _) if *imm <= 0x03F => Some(IInstruction::slli),
+            (Opcode::ARITH_IMM, 0b101, _) if *imm <= 0x03F => Some(IInstruction::srli),
+            (Opcode::ARITH_IMM, 0b101, _) if (*imm >= 0x200) && (*imm <= 0x23f) => {
+                Some(IInstruction::srai)
+            }
 
             (Opcode::ARITH_IMM, 0x0, _) => Some(IInstruction::addi),
             (Opcode::ARITH_IMM, 0x4, _) => Some(IInstruction::xori),
@@ -276,7 +278,7 @@ pub enum Instruction {
     },
 }
 
-fn pretty_register(num: &usize) -> &str {
+pub fn pretty_register(num: &usize) -> &str {
     const REG_NAMES: [&str; 32] = [
         "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2", "s0", "s1", "a0", "a1", "a2", "a3", "a4",
         "a5", "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4",

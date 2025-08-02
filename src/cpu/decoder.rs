@@ -71,7 +71,7 @@ pub fn decode(raw: &u32) -> Result<Instruction, RVException> {
             | (((raw >> 20) & 1) << 11) as i32
             | (((raw >> 21) & 0x3ff) << 1) as i32
     };
-    let imm_u = |raw: &u32| (raw & !0xfff) as i32;
+    let imm_u = |raw: &u32| (*raw as i32) >> 12;
 
     // Extract Opcode
     let raw_opcode = raw & 0x7f;
@@ -179,14 +179,23 @@ mod tests {
                 rs1: 5,
                 inst: IInstruction::xori
             })
+        );
+        assert_eq!(
+            decode(&0x1f51513),
+            Ok(Instruction::IType {
+                imm: 31,
+                rd: 10,
+                rs1: 10,
+                inst: IInstruction::slli
+            })
         )
     }
     #[test]
     fn test_utype() {
         assert_eq!(
-            decode(&0x08000117),
+            decode(&0x80000117),
             Ok(Instruction::UJType {
-                imm: 32768 << 12,
+                imm: -524288,
                 rd: 2,
                 inst: UJInstruction::auipc
             })
@@ -194,7 +203,7 @@ mod tests {
         assert_eq!(
             decode(&0xaaaaa0b7),
             Ok(Instruction::UJType {
-                imm: -349526 << 12,
+                imm: -349526,
                 rd: 1,
                 inst: UJInstruction::lui
             })

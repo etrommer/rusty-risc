@@ -30,7 +30,7 @@ fn exec_i(
     // Handle all instructions that write back to rd
     if let Some(result) = match inst {
         // Arithmetic
-        IInstruction::addi => Some(rs1_data + imm),
+        IInstruction::addi => Some(rs1_data.wrapping_add(imm)),
         IInstruction::xori => Some(rs1_data ^ imm),
         IInstruction::ori => Some(rs1_data | imm),
         IInstruction::andi => Some(rs1_data & imm),
@@ -182,8 +182,8 @@ fn exec_r(
     };
 
     let result = match inst {
-        RInstruction::add => rs1_data + rs2_data,
-        RInstruction::sub => rs1_data - rs2_data,
+        RInstruction::add => rs1_data.wrapping_add(rs2_data),
+        RInstruction::sub => rs1_data.wrapping_sub(rs2_data),
         RInstruction::xor => rs1_data ^ rs2_data,
         RInstruction::or => rs1_data | rs2_data,
         RInstruction::and => rs1_data & rs2_data,
@@ -295,8 +295,8 @@ fn exec_s_b(
 fn exec_u_j(cpu: &mut Cpu, imm: i32, rd: usize, inst: UJInstruction) -> Result<(), RVException> {
     let old_pc = cpu.pc as i32;
     let result = match inst {
-        UJInstruction::auipc => old_pc + imm,
-        UJInstruction::lui => imm,
+        UJInstruction::auipc => old_pc.wrapping_add(imm << 12),
+        UJInstruction::lui => imm << 12,
         UJInstruction::jal => {
             // Set PC to instruction *before* jump target
             // PC is incremented unconditionally by 4 after each instruction
