@@ -1,6 +1,9 @@
 use core::time;
 use std::collections::HashSet;
 
+use tracing::debug;
+use tracing::info;
+
 use self::alu::exec;
 use self::decoder::decode;
 use self::regfile::RegFile;
@@ -50,7 +53,7 @@ impl Cpu {
     }
 
     fn trap_entry(&mut self, exception: RVException) {
-        println!("Exception {:?} @ {:#08x}", exception, self.pc);
+        info!("{:#010x} | Exception {:?}", self.pc, exception);
 
         // Disable interrupts
         self.csrfile.disable_irq();
@@ -69,7 +72,7 @@ impl Cpu {
         // ECALL from riscv-tests test environment
         if exception == RVException::EnvironmentCall && self.regfile.read(17) == 93 {
             let result = self.regfile.read(10);
-            println!("Test Result in a0: {}", result);
+            info!("Test Result in a0: {}", result);
             std::process::exit(result);
         }
 
@@ -95,11 +98,15 @@ impl Cpu {
         // Raise timer interrupt if enabled
         self.csrfile.mtimer_interrupt()?;
 
+        // Fetch
         let instruction = self.fetch()?;
-        // println!("{:#08x}", instruction);
         // Decode
         let decoded_instr = decode(&instruction)?;
-        println!("{:#08x} | {}", self.pc, decoded_instr);
+        info!(
+            "{:#010x}| {:#010x} | {}",
+            self.pc, instruction, decoded_instr
+        );
+
         // Execute
         exec(self, decoded_instr)?;
         Ok(())

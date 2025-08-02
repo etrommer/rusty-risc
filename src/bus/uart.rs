@@ -1,8 +1,17 @@
 use super::BusDevice;
+use tracing::warn;
 
 const BASE_ADDR: usize = 0x10000000;
 
-pub struct Uart {}
+pub struct Uart {
+    buffer: Vec<u8>,
+}
+
+impl Uart {
+    pub fn new() -> Self {
+        Self { buffer: Vec::new() }
+    }
+}
 
 impl BusDevice for Uart {
     fn load<T: super::BusWidth<T> + std::fmt::Display>(
@@ -24,7 +33,12 @@ impl BusDevice for Uart {
             // Not very elegant way of extracting u8 from generic type `T`
             let mut c = [0u8];
             T::to_mem(data, &mut c);
-            print!("{}", c[0] as char);
+            if c[0] == b'\n' {
+                warn!("{}", String::from_utf8_lossy(&self.buffer));
+                self.buffer.clear();
+            } else {
+                self.buffer.push(c[0]);
+            }
         }
         Ok(())
     }

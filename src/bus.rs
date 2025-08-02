@@ -83,7 +83,7 @@ impl Bus {
     pub fn new(ram: Vec<u8>) -> Self {
         Self {
             ram: Ram::new(ram),
-            uart: Uart {},
+            uart: Uart::new(),
             clint: Clint::new(),
         }
     }

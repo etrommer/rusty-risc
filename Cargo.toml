@@ -12,3 +12,5 @@ num-integer = "^0.1"
 clap = { version = "4.5.23", features = ["derive"] }
 iter-enum = "1.2.0"
 goblin = "0.10.0"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
