@@ -26,16 +26,18 @@ pub struct Cpu {
     bus: Bus,
     amoreserved: HashSet<usize>,
     pub pc: usize,
+    pub delay: u64,
 }
 
 impl Cpu {
-    pub fn new(bus: Bus) -> Self {
+    pub fn new(ram: Vec<u8>) -> Self {
         Self {
             regfile: RegFile::new(),
             csrfile: CSRFile::new(),
-            bus: bus,
+            bus: Bus::new(ram),
             amoreserved: HashSet::new(),
             pc: 0x80000000,
+            delay: 0,
         }
     }
 
@@ -98,7 +100,7 @@ impl Cpu {
             Err(exception) => self.trap_entry(exception),
             Ok(()) => self.pc += 4,
         };
-        std::thread::sleep(time::Duration::from_millis(50));
+        std::thread::sleep(time::Duration::from_millis(self.delay));
     }
 }
 
