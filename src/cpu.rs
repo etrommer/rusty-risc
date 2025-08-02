@@ -7,6 +7,7 @@ use self::regfile::RegFile;
 
 use crate::bus::{Bus, BusDevice, BusError};
 use crate::cpu::csr::{ArchCSRs, CSRFile};
+use crate::cpu::instructions::pretty_register;
 use crate::trap::RVException;
 
 pub mod alu;
@@ -49,6 +50,11 @@ impl Cpu {
     }
 
     fn trap_entry(&mut self, exception: RVException) {
+        println!("Exception {:?} @ {:#08x}", exception, self.pc);
+
+        // Disable interrupts
+        self.csrfile.disable_irq();
+
         let mtval = match exception {
             RVException::InstructionAddressMisaligned(addr) => addr as u32,
             RVException::InstructionAccessFault(addr) => addr as u32,
@@ -59,17 +65,20 @@ impl Cpu {
             RVException::StoreAccessFault(addr) => addr as u32,
             _ => 0,
         };
+
+        // ECALL from riscv-tests test environment
+        if exception == RVException::EnvironmentCall && self.regfile.read(17) == 93 {
+            let result = self.regfile.read(10);
+            println!("Test Result in a0: {}", result);
+            std::process::exit(result);
+        }
+
         self.csrfile.write(ArchCSRs::mtval as i32, mtval as i32);
-
-        println!("Exception {:?} @ {:#08x}", exception, self.pc);
-
-        // Disable interrupts
-        self.csrfile.disable_irq();
-
-        self.csrfile.write(ArchCSRs::mepc as i32, self.pc as i32);
         self.csrfile
             .write(ArchCSRs::mcause as i32, exception.to_ecode() as i32);
-        self.pc = self.csrfile.read(ArchCSRs::mtvec as i32) as usize
+
+        self.csrfile.write(ArchCSRs::mepc as i32, self.pc as i32);
+        self.pc = self.csrfile.read(ArchCSRs::mtvec as i32) as u32 as usize
     }
 
     fn trap_exit(&mut self) {
@@ -77,12 +86,13 @@ impl Cpu {
         self.csrfile.enable_irq();
 
         // Restore PC from mepc
-        self.pc = self.csrfile.read(ArchCSRs::mepc as i32) as usize;
+        self.pc = self.csrfile.read(ArchCSRs::mepc as i32) as u32 as usize - 4;
     }
 
     fn next_instruction(&mut self) -> Result<(), RVException> {
         // Update CLINT
         self.bus.clint.tick(&mut self.csrfile);
+        // Raise timer interrupt if enabled
         self.csrfile.mtimer_interrupt()?;
 
         let instruction = self.fetch()?;
