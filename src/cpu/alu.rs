@@ -236,7 +236,38 @@ fn exec_r(
         }
 
         // M-Extension instructions
-        _ => todo!(),
+        RInstruction::mul => (rs1_data as i64 * rs2_data as i64) as i32,
+        RInstruction::mulh => ((rs1_data as i64 * rs2_data as i64) >> 32) as i32,
+        RInstruction::mulhu => ((rs1_data as u32 as u64 * rs2_data as u32 as u64) >> 32) as i32,
+        RInstruction::mulhsu => ((rs1_data as i64 * rs2_data as u32 as i64) >> 32) as i32,
+        RInstruction::div => {
+            if rs2_data == 0 {
+                -1
+            } else {
+                rs1_data.wrapping_div(rs2_data)
+            }
+        }
+        RInstruction::divu => {
+            if rs2_data == 0 {
+                -1
+            } else {
+                (rs1_data as u32).wrapping_div(rs2_data as u32) as i32
+            }
+        }
+        RInstruction::rem => {
+            if rs2_data == 0 {
+                rs1_data
+            } else {
+                rs1_data.wrapping_rem(rs2_data)
+            }
+        }
+        RInstruction::remu => {
+            if rs2_data == 0 {
+                rs1_data
+            } else {
+                (rs1_data as u32).wrapping_rem(rs2_data as u32) as i32
+            }
+        }
     };
     cpu.regfile.write(rd, result);
     Ok(())
