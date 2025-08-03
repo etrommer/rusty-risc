@@ -178,7 +178,8 @@ fn exec_r(
         cpu.bus
             .store::<i32>(rs1_data as u32 as usize, result)
             .map_err(|e| handle_store_error(e))?;
-        Ok(result)
+
+        Ok(mem_value)
     };
 
     let result = match inst {
@@ -205,8 +206,8 @@ fn exec_r(
             }
         }
 
-        // Atomics
-        RInstruction::amoAddW => amo_logic(|a, b| a + b)?,
+        // A-Extension instructions
+        RInstruction::amoAddW => amo_logic(|a, b| a.wrapping_add(b))?,
         RInstruction::amoAndW => amo_logic(|a, b| a & b)?,
         RInstruction::amoOrW => amo_logic(|a, b| a | b)?,
         RInstruction::amoXorW => amo_logic(|a, b| a ^ b)?,
@@ -214,6 +215,7 @@ fn exec_r(
         RInstruction::amoMinW => amo_logic(|a, b| a.min(b))?,
         RInstruction::amoMaxUW => amo_logic(|a, b| (a as u32).max(b as u32) as i32)?,
         RInstruction::amoMinUW => amo_logic(|a, b| (a as u32).min(b as u32) as i32)?,
+        RInstruction::amoSwapW => amo_logic(|_, b| b)?,
         RInstruction::lrw => {
             let addr = rs1_data as u32 as usize;
             let mem_value = cpu
