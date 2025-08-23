@@ -1,7 +1,6 @@
 use super::BusDevice;
-use tracing::warn;
 
-const BASE_ADDR: usize = 0x10000000;
+const BASE_ADDR: usize = 0x1000_0000;
 
 pub struct Uart {
     buffer: Vec<u8>,
@@ -19,7 +18,7 @@ impl BusDevice for Uart {
         addr: usize,
     ) -> Result<T, super::BusError> {
         if addr == BASE_ADDR + 0x5 {
-            return Ok(T::from_mem(&[0x40]));
+            return Ok(T::from_mem(&[0x60]));
         }
         Ok(T::from_mem(&[0x00]))
     }
@@ -29,15 +28,14 @@ impl BusDevice for Uart {
         addr: usize,
         data: T,
     ) -> Result<(), super::BusError> {
-        if addr == BASE_ADDR && T::WIDTH == 1 {
+        if addr == BASE_ADDR {
             // Not very elegant way of extracting u8 from generic type `T`
             let mut c = [0u8];
             T::to_mem(data, &mut c);
+            self.buffer.push(c[0]);
             if c[0] == b'\n' {
-                warn!("{}", String::from_utf8_lossy(&self.buffer));
+                print!("{}", String::from_utf8_lossy(&self.buffer));
                 self.buffer.clear();
-            } else {
-                self.buffer.push(c[0]);
             }
         }
         Ok(())
@@ -55,14 +53,14 @@ mod tests {
 
     #[test]
     fn test_write() {
-        let mut dut: Uart = Uart {};
+        let mut dut: Uart = Uart { buffer: vec![] };
 
         assert_eq!(dut.store::<u8>(BASE_ADDR, b'a'), Ok(()));
     }
     #[test]
     fn test_read() {
-        let dut: Uart = Uart {};
+        let dut: Uart = Uart { buffer: vec![] };
 
-        assert_eq!(dut.load::<u8>(BASE_ADDR + 0x05), Ok(0x40));
+        assert_eq!(dut.load::<u8>(BASE_ADDR + 0x05), Ok(0x60));
     }
 }
