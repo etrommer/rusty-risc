@@ -1,6 +1,11 @@
+use num_traits::FromPrimitive;
+use tracing::info;
+
 use super::instructions::{IInstruction, Instruction, RInstruction, SBInstruction, UJInstruction};
 use super::Cpu;
 use crate::bus::{BusDevice, BusError};
+use crate::cpu::csr::ArchCSRs;
+use crate::cpu::ExecMode;
 use crate::trap::RVException;
 
 fn handle_load_error(e: BusError) -> RVException {
@@ -130,7 +135,10 @@ fn exec_i(
     } else {
         match inst {
             IInstruction::ebreak => Err(RVException::BreakPoint),
-            IInstruction::ecall => Err(RVException::EnvironmentCall),
+            IInstruction::ecall => match cpu.mode {
+                ExecMode::MACHINE => Err(RVException::EnvironmentCallM),
+                ExecMode::USER => Err(RVException::EnvironmentCallU),
+            },
 
             // Sequential execution anyway, so no
             // need to fence anything
@@ -138,14 +146,25 @@ fn exec_i(
             IInstruction::fencei => Ok(()),
 
             IInstruction::mret => {
-                // Return from machine mode trap
-                cpu.trap_exit();
+                // Re-enable interrupts
+                cpu.csrfile.enable_irq();
+
+                // Restore PC from mepc
+                cpu.pc = cpu.csrfile.read(ArchCSRs::mepc as i32) as u32 as usize - 4;
+
+                cpu.mode = ExecMode::from_u32(cpu.csrfile.get_mpp()).unwrap();
+                cpu.csrfile.set_mpp(&(ExecMode::MACHINE as u32));
+                info!(
+                    "Returning from trap to mode {:?}, mstatus: {:#010x}, PC: {:#010x}",
+                    cpu.mode,
+                    cpu.csrfile.read(ArchCSRs::mstatus as i32),
+                    cpu.pc
+                );
+
                 Ok(())
             }
             IInstruction::sret => {
-                // Return from supervisor mode trap
-                cpu.trap_exit();
-                Ok(())
+                panic!("Supervisor mode not implemented yet");
             }
             IInstruction::wfi => {
                 // Ignore sleep for now

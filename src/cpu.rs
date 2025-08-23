@@ -130,26 +130,33 @@ impl Cpu {
         };
 
         // ECALL from riscv-tests test environment
-        if exception == RVException::EnvironmentCall && self.regfile.read(17) == 93 {
+        if (exception == RVException::EnvironmentCallU
+            || exception == RVException::EnvironmentCallM)
+            && self.regfile.read(17) == 93
+        {
             let result = self.regfile.read(10);
             info!("Test Result in a0: {}", result);
             std::process::exit(result);
         }
+
+        let mode = self.mode.clone() as u32;
+        self.csrfile.set_mpp(&mode);
+
+        self.mode = ExecMode::MACHINE; // Set mode to MACHINE for trap handling
 
         self.csrfile.write(ArchCSRs::mtval as i32, mtval as i32);
         self.csrfile
             .write(ArchCSRs::mcause as i32, exception.to_ecode() as i32);
 
         self.csrfile.write(ArchCSRs::mepc as i32, self.pc as i32);
-        self.pc = self.csrfile.read(ArchCSRs::mtvec as i32) as u32 as usize
-    }
-
-    fn trap_exit(&mut self) {
-        // Re-enable interrupts
-        self.csrfile.enable_irq();
-
-        // Restore PC from mepc
-        self.pc = self.csrfile.read(ArchCSRs::mepc as i32) as u32 as usize - 4;
+        self.pc = self.csrfile.read(ArchCSRs::mtvec as i32) as u32 as usize;
+        info!(
+            "Entering trap handler for {:?} from {:#010x} at {:#010x} with mstatus: {:#010x}",
+            exception,
+            self.csrfile.read(ArchCSRs::mepc as i32),
+            self.pc,
+            self.csrfile.read(ArchCSRs::mstatus as i32)
+        );
     }
 
     fn next_instruction(&mut self) -> Result<(), RVException> {
@@ -162,14 +169,28 @@ impl Cpu {
         let instruction = self.fetch()?;
         // Decode
         let decoded_instr = decode(&instruction)?;
-        info!(
-            "{:#010x}| {:#010x} | {}",
+        debug!(
+            "{:#010x} | {:#010x} | {:<6}",
             self.pc, instruction, decoded_instr
         );
 
         // Execute
         exec(self, decoded_instr)?;
+
+        self.csrfile.count_cycle();
+
+        let cycle_count = self.cycle_count();
+        if self.count > 0 && cycle_count > self.count {
+            self.dump_state();
+            warn!("Limit of {} instructions reached. Exiting.", self.count);
+            std::process::exit(0);
+        }
+
         Ok(())
+    }
+
+    fn cycle_count(&self) -> u64 {
+        self.csrfile.read(0xC00) as u32 as u64
     }
 
     pub fn step(&mut self) {
