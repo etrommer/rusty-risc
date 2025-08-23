@@ -2,6 +2,7 @@ use crate::{cpu::MMIORegister, trap::RVException};
 use enum_primitive_derive::Primitive;
 use num_traits::FromPrimitive;
 use std::collections::HashMap;
+use tracing::warn;
 
 #[derive(Debug, Clone, Eq, Hash, PartialEq, Primitive)]
 #[allow(non_camel_case_types)]
@@ -10,6 +11,8 @@ pub enum ArchCSRs {
     marchid = 0xf12,
     mimpid = 0xf13,
     mhartid = 0xf14,
+
+    rdcycle = 0xc00,
 
     mstatus = 0x300,
     misa = 0x301,
@@ -23,11 +26,12 @@ pub enum ArchCSRs {
     mip = 0x344,
 }
 
-const ARCH_CSRS_ITERABLE: [ArchCSRs; 13] = [
+const ARCH_CSRS_ITERABLE: [ArchCSRs; 14] = [
     ArchCSRs::mvendorid,
     ArchCSRs::marchid,
     ArchCSRs::mimpid,
     ArchCSRs::mhartid,
+    ArchCSRs::rdcycle,
     ArchCSRs::mstatus,
     ArchCSRs::misa,
     ArchCSRs::mie,
@@ -52,6 +56,7 @@ impl CSRFile {
                 ArchCSRs::marchid => false,
                 ArchCSRs::mimpid => false,
                 ArchCSRs::mhartid => false,
+                ArchCSRs::rdcycle => false,
                 _ => true,
             };
             let initial_value = match e {
@@ -86,6 +91,12 @@ impl CSRFile {
         0
     }
 
+    pub fn count_cycle(&mut self) {
+        if let Some(rdcycle) = self.csrs.get_mut(&ArchCSRs::rdcycle) {
+            rdcycle.value = rdcycle.value.wrapping_add(1);
+        }
+    }
+
     pub fn disable_irq(&mut self) {
         const MSTATUS_MIE: u32 = 1 << 3;
         const MSTATUS_MPIE: u32 = 1 << 7;
@@ -95,10 +106,23 @@ impl CSRFile {
         if (mstatus.value & MSTATUS_MIE) != 0 {
             mstatus.value |= MSTATUS_MPIE;
         } else {
-            mstatus.value &= !MSTATUS_MPIE;
+            mstatus.value &= MSTATUS_MPIE;
         }
         // Clear MIE to disable interrupts
         mstatus.value &= !MSTATUS_MIE;
+    }
+
+    pub fn get_mpp(&self) -> u32 {
+        const MSTATUS_MPP: u32 = 0b11 << 11; // MPP bits in mstatus CSR
+        let mstatus = self.csrs.get(&ArchCSRs::mstatus).unwrap();
+        (mstatus.value & MSTATUS_MPP) >> 11
+    }
+
+    pub fn set_mpp(&mut self, mpp: &u32) {
+        const MSTATUS_MPP: u32 = 0b11 << 11; // MPP bits in mstatus CSR
+        let mstatus = self.csrs.get_mut(&ArchCSRs::mstatus).unwrap();
+        // Clear MPP bits and set new value
+        mstatus.value = (mstatus.value & !MSTATUS_MPP) | ((mpp & 0b11) << 11);
     }
 
     pub fn enable_irq(&mut self) {
@@ -112,8 +136,8 @@ impl CSRFile {
         } else {
             mstatus.value &= !MSTATUS_MIE;
         }
-        // Clear MPIE bit
-        mstatus.value &= !MSTATUS_MPIE;
+        // Set MPIE bit
+        mstatus.value |= MSTATUS_MPIE;
     }
 
     pub fn mtimer_interrupt(&self) -> Result<(), RVException> {
