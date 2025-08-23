@@ -1,8 +1,11 @@
 use core::time;
 use std::collections::HashSet;
 
+use enum_primitive_derive::Primitive;
+use goblin::elf::Elf;
 use tracing::debug;
 use tracing::info;
+use tracing::warn;
 
 use self::alu::exec;
 use self::decoder::decode;
@@ -12,6 +15,7 @@ use crate::bus::{Bus, BusDevice, BusError};
 use crate::cpu::csr::{ArchCSRs, CSRFile};
 use crate::cpu::instructions::pretty_register;
 use crate::trap::RVException;
+use crate::RAM_SIZE;
 
 pub mod alu;
 pub mod csr;
@@ -24,24 +28,80 @@ struct MMIORegister {
     writable: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Primitive)]
+enum ExecMode {
+    MACHINE = 0b11,
+    USER = 0b00,
+}
+
 pub struct Cpu {
     regfile: RegFile,
     csrfile: CSRFile,
     bus: Bus,
     amoreserved: HashSet<usize>,
+    mode: ExecMode,
     pub pc: usize,
     pub delay: u64,
+    pub count: u64,
 }
 
+const RAM_START: usize = 0x8000_0000;
+
 impl Cpu {
-    pub fn new(ram: Vec<u8>) -> Self {
+    pub fn new(mut kernel: Vec<u8>, ram_size: usize) -> Self {
+        if kernel.len() > ram_size {
+            panic!("Kernel size exceeds RAM size");
+        }
+        info!(
+            "Loading binary at {:#10x} with size {}",
+            RAM_START,
+            kernel.len()
+        );
+        kernel.extend(vec![0u8; ram_size - kernel.len()]);
+
         Self {
             regfile: RegFile::new(),
             csrfile: CSRFile::new(),
-            bus: Bus::new(ram),
+            bus: Bus::new(kernel, RAM_START),
             amoreserved: HashSet::new(),
-            pc: 0x80000000,
+            mode: ExecMode::MACHINE,
+            pc: RAM_START,
             delay: 0,
+            count: 0,
+        }
+    }
+
+    pub fn load_dtb(&mut self, dtb_bytes: Vec<u8>) {
+        let dtb_start = self.bus.ram.addr_space().1 - dtb_bytes.len();
+        info!(
+            "Loading DTB at {:#10x} with size {}",
+            dtb_start,
+            dtb_bytes.len()
+        );
+        self.bus.ram.mem[RAM_SIZE - dtb_bytes.len()..].copy_from_slice(&dtb_bytes);
+        self.regfile.write(10, 0); // hartid
+        self.regfile.write(11, dtb_start as i32); // DTB pointer
+    }
+
+    pub fn load_elf(&mut self, elf_bytes: Vec<u8>) {
+        let elf = Elf::parse(&elf_bytes).unwrap();
+
+        // Find all sections starting with .text
+        for section in elf.section_headers.iter() {
+            if let Some(name) = elf.shdr_strtab.get_at(section.sh_name) {
+                if name.starts_with(".text") || name.starts_with(".data") {
+                    let offset = section.sh_offset as usize;
+                    let size = section.sh_size as usize;
+                    let addr = section.sh_addr as usize;
+                    let text_bytes = &elf_bytes[offset..offset + size];
+                    info!(
+                        "Loading {} section at {:#08x} with size {}",
+                        name, addr, size
+                    );
+                    self.bus.ram.mem[addr - RAM_START..addr - RAM_START + size]
+                        .copy_from_slice(text_bytes);
+                }
+            }
         }
     }
 
@@ -120,6 +180,7 @@ impl Cpu {
         std::thread::sleep(time::Duration::from_millis(self.delay));
     }
 
+    #[allow(dead_code)]
     pub fn dump_state(&self) {
         println!("=== CPU State @ PC {:#08x} ===", self.pc);
         for i in 0..32 {
@@ -147,7 +208,7 @@ mod tests {
             .iter()
             .flat_map(|&v: &u32| v.to_le_bytes())
             .collect();
-        let mut cpu = Cpu::new(ram);
+        let mut cpu = Cpu::new(ram, 1024);
         assert_eq!(cpu.next_instruction(), Ok(()));
         cpu.pc += 4;
         assert_eq!(cpu.next_instruction(), Ok(()));
@@ -159,7 +220,7 @@ mod tests {
             .iter()
             .flat_map(|&v: &u32| v.to_le_bytes())
             .collect();
-        let mut cpu = Cpu::new(ram);
+        let mut cpu = Cpu::new(ram, 1024);
         assert_eq!(cpu.next_instruction(), Ok(()));
         assert_eq!(cpu.regfile.read(1) as u32, 0x80000000);
         cpu.pc += 4;

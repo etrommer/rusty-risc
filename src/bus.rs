@@ -74,15 +74,15 @@ pub trait BusDevice {
 }
 
 pub struct Bus {
-    ram: Ram,
     uart: Uart,
+    pub ram: Ram,
     pub clint: Clint,
 }
 
 impl Bus {
-    pub fn new(ram: Vec<u8>) -> Self {
+    pub fn new(ram: Vec<u8>, ram_start: usize) -> Self {
         Self {
-            ram: Ram::new(ram),
+            ram: Ram::new(ram, ram_start),
             uart: Uart::new(),
             clint: Clint::new(),
         }

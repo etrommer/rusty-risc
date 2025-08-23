@@ -3,15 +3,13 @@ use super::BusError;
 
 pub struct Ram {
     addr_space: (usize, usize),
-    mem: Vec<u8>,
+    pub mem: Vec<u8>,
 }
 
-const RAM_START: usize = 0x80000000;
-
 impl Ram {
-    pub fn new(ram: Vec<u8>) -> Self {
+    pub fn new(ram: Vec<u8>, ram_start: usize) -> Self {
         Self {
-            addr_space: (RAM_START, RAM_START + ram.len()),
+            addr_space: (ram_start, ram_start + ram.len()),
             mem: ram,
         }
     }
@@ -20,7 +18,8 @@ impl Ram {
 impl BusDevice for Ram {
     fn load<T: super::BusWidth<T> + std::fmt::Display>(&self, addr: usize) -> Result<T, BusError> {
         let uaddr = addr as usize - self.addr_space.0;
-        Ok(T::from_mem(&self.mem[uaddr..uaddr + T::WIDTH]))
+        let value = T::from_mem(&self.mem[uaddr..uaddr + T::WIDTH]);
+        Ok(value)
     }
 
     fn store<T: super::BusWidth<T> + std::fmt::Display>(
