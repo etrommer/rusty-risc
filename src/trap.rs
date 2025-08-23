@@ -8,12 +8,13 @@ pub enum RVException {
     LoadAccessFault(usize),
     StoreAddressMisaligned(usize),
     StoreAccessFault(usize),
-    EnvironmentCall,
+    EnvironmentCallU,
+    EnvironmentCallM,
     TimerInterrupt,
 }
 
 impl RVException {
-    pub fn to_ecode(self) -> u32 {
+    pub fn to_ecode(&self) -> u32 {
         match self {
             Self::InstructionAddressMisaligned(_) => 0,
             Self::InstructionAccessFault(_) => 1,
@@ -23,7 +24,8 @@ impl RVException {
             Self::LoadAccessFault(_) => 5,
             Self::StoreAddressMisaligned(_) => 6,
             Self::StoreAccessFault(_) => 7,
-            Self::EnvironmentCall => 11,
+            Self::EnvironmentCallU => 8,
+            Self::EnvironmentCallM => 11,
             Self::TimerInterrupt => 0x8000_0007,
         }
     }
