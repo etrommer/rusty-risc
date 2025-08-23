@@ -1,49 +1,8 @@
-use core::fmt;
 use num_traits::FromPrimitive;
-use std::error::Error;
 
 use super::instructions::{IInstruction, RInstruction, SBInstruction, UJInstruction};
 use super::instructions::{Instruction, Opcode};
 use crate::trap::RVException;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum DecodingError {
-    OpCodeError(u32),
-    RTypeError(u32, u32),
-    ITypeError(u32, u32, i32),
-    SBTypeError(u32, u32),
-}
-
-impl fmt::Display for DecodingError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::OpCodeError(op) => write!(f, "unknown opcode: {:#08b}", op),
-            Self::RTypeError(f3, f7) => {
-                write!(
-                    f,
-                    "unknown r-type instruction f3: {:#08b}, f7: {:#08b}",
-                    f3, f7
-                )
-            }
-            Self::ITypeError(op, f3, imm) => {
-                write!(
-                    f,
-                    "unknown i-type instruction opcode: {:#08b}, f3: {:#08b}, imm: {:#12b}",
-                    op, f3, imm
-                )
-            }
-            Self::SBTypeError(op, f3) => {
-                write!(
-                    f,
-                    "unknown s/b-type instruction opcode: {:#08b}, f3: {:#08b}",
-                    op, f3
-                )
-            }
-        }
-    }
-}
-
-impl Error for DecodingError {}
 
 // Decode instruction from raw integer
 pub fn decode(raw: &u32) -> Result<Instruction, RVException> {
