@@ -6,7 +6,7 @@ failures=0
 
 for test_binary in tests/rv32*; do
   printf "%-45s" "Running test: $test_binary..."
-  if target/release/riscv_emu --elf "$test_binary" > /dev/null 2>&1; then
+  if target/release/riscv_emu --elf "$test_binary" --test > /dev/null 2>&1; then
     echo "[ OK ]"
   else
     echo "[FAIL]"

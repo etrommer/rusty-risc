@@ -34,7 +34,10 @@ struct Args {
     delay: u64,
 
     #[arg(short, long, default_value_t = 0)]
-    count: u64,
+    instructions: u64,
+
+    #[arg(short, long, default_value_t = false)]
+    test: bool,
 
     #[arg(long, default_value_t = Level::INFO, value_parser = parse_level)]
     log_level: Level,
@@ -58,12 +61,16 @@ fn main() {
         .expect("msg: Failed to set global subscriber");
 
     let mut kernel = vec![];
+
     if let Some(kernel_path) = args.kernel {
         kernel = load_from_bin(&kernel_path);
     }
+
     let mut cpu = Cpu::new(kernel, RAM_SIZE);
     cpu.delay = args.delay;
-    cpu.count = args.count;
+    cpu.instruction_count = args.instructions;
+    cpu.test = args.test;
+
     if let Some(elf_path) = args.elf {
         cpu.load_elf(load_from_bin(&elf_path));
     }
