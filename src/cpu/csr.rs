@@ -106,7 +106,7 @@ impl CSRFile {
         if (mstatus.value & MSTATUS_MIE) != 0 {
             mstatus.value |= MSTATUS_MPIE;
         } else {
-            mstatus.value &= MSTATUS_MPIE;
+            mstatus.value &= !MSTATUS_MPIE;
         }
         // Clear MIE to disable interrupts
         mstatus.value &= !MSTATUS_MIE;
