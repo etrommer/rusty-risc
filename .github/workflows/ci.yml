@@ -1,0 +1,26 @@
+
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  integration_tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    container:
+      image: rust:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shell tests
+        run: |
+          chmod +x ./run_tests.sh
+          ./run_tests.sh
+
+  unit_tests:
+    runs-on: ubuntu-latest
+    container:
+      image: rust:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run cargo tests
+        run: cargo test
