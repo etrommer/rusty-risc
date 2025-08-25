@@ -1,4 +1,4 @@
-# RISC-V Emulator
+# rusty-risc: Educational RISC-V Emulator 🦀🦸
 
 Purely educational implementation of a RISC-V CPU in Rust. The purpose was for me to learn about the RISC-V instruction set and Embedded Linux.
 
